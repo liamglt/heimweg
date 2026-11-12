@@ -47,19 +47,21 @@
   .ok .state { color: var(--ok); } .warn .state { color: var(--warn); } .bad .state { color: var(--bad); }
   .chip { display: inline-block; color: #fff; font-weight: 700; font-size: 12px; border-radius: 6px; padding: 2px 6px; margin-right: 6px; }
   .chip.s { background: var(--s); } .chip.u { background: var(--u); }
-  .s1 { display: flex; align-items: center; gap: 8px; }
-  .s1 .t { font-size: 20px; font-weight: 700; font-variant-numeric: tabular-nums; }
-  .s1 .t s { font-weight: 400; font-size: 13px; color: var(--muted); margin-left: 4px; }
-  .s1 .dest { flex: 1; min-width: 0; color: var(--muted); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .badge { font-size: 13px; font-weight: 700; border-radius: 999px; padding: 4px 10px; white-space: nowrap; }
+  .u2 { padding: 10px 0; border-top: 1px solid var(--line); }
+  .u2:first-child { padding-top: 2px; border-top: 0; }
+  .u2 .top { display: flex; align-items: center; gap: 8px; }
+  .u2 .t { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .u2 .in { margin-left: auto; font-size: 17px; font-weight: 800; white-space: nowrap; }
+  .u2 .m { margin-top: 2px; font-size: 14px; font-weight: 600; color: var(--muted); }
+  .u2.tight .chg { color: var(--warn); }
+  .s1 { display: flex; align-items: center; gap: 8px; margin-top: 4px; padding-top: 10px; border-top: 2px solid var(--line); }
+  .s1 .t { font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .s1 .t s { font-weight: 400; font-size: 12px; color: var(--muted); margin-left: 4px; }
+  .s1 .dest { flex: 1; min-width: 0; color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cancelled .s1 { margin-top: 0; padding-top: 0; border-top: 0; }
+  .badge { font-size: 12px; font-weight: 700; border-radius: 999px; padding: 3px 9px; white-space: nowrap; }
   .b-ok { color: var(--ok); background: var(--ok-bg); } .b-warn { color: var(--warn); background: var(--warn-bg); }
   .b-bad { color: var(--bad); background: var(--bad-bg); }
-  .u2 { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: baseline; padding: 9px 0 0; margin-top: 9px;
-    border-top: 1px solid var(--line); font-size: 15px; }
-  .u2 b { font-variant-numeric: tabular-nums; }
-  .u2 .m { color: var(--muted); font-size: 13px; }
-  .u2 .in { font-size: 13px; font-weight: 600; white-space: nowrap; }
-  .u2.tight .m .chg { color: var(--warn); font-weight: 600; }
   .late { color: var(--warn); font-weight: 600; }
   .card.cancelled .s1 .t { text-decoration: line-through; color: var(--muted); }
   .empty, .err { color: var(--muted); }
@@ -197,16 +199,17 @@ function render(p, now) {
   $("groups").innerHTML = p.groups.map((g) => {
     const s = g.s1;
     const time = s.delay && !s.cancelled ? `${hm(s.est)}<s>${hm(s.planned)}</s>` : hm(s.planned);
-    const head = `<div class="s1"><span class="chip s">S1</span><span class="t">${time}</span>
-      <span class="dest">${esc(s.dest)}${s.platform ? " · Gl. " + esc(s.platform) : ""}</span>${s1Badge(s)}</div>`;
-    const rows = g.u2.map((u) => {
+    // U2 first (where you get on), earliest at the top; the S1 they connect to below
+    const rows = [...g.u2].sort((a, b) => a.est - b.est).map((u) => {
       const change = Math.round((s.est - u.arr) / MIN);
-      return `<div class="u2${change <= 2 ? " tight" : ""}"><span class="chip u">U2</span>
-        <span><b>${hm(u.est)}</b>${u.delay ? ` <span class="late">+${u.delay}</span>` : ""}
-          <span class="m">→ ${u.exact ? "" : "≈"}${hm(u.arr)} · <span class="chg">${change} min change</span></span></span>
-        <span class="in">${until(u.est, now)}</span></div>`;
+      return `<div class="u2${change <= 2 ? " tight" : ""}">
+        <div class="top"><span class="chip u">U2</span><span class="t">${hm(u.est)}</span>${u.delay ? `<span class="late">+${u.delay}</span>` : ""}
+          <span class="in">${until(u.est, now)}</span></div>
+        <div class="m">Feldmoching ${u.exact ? "" : "≈"}${hm(u.arr)} · <span class="chg">${change} min change</span></div></div>`;
     }).join("");
-    return `<div class="card${s.cancelled ? " cancelled" : ""}">${head}${rows}</div>`;
+    const foot = `<div class="s1"><span class="chip s">S1</span><span class="t">${time}</span>
+      <span class="dest">${esc(s.dest)}${s.platform ? " · Gl. " + esc(s.platform) : ""}</span>${s1Badge(s)}</div>`;
+    return `<div class="card${s.cancelled ? " cancelled" : ""}">${rows}${foot}</div>`;
   }).join("") || '<div class="card empty">No S1 towards Lohhof with a U2 connection in the next hour.</div>';
   $("updated").textContent = "Updated " + hm(now) + " · refreshes every minute";
   $("foot").textContent = "Data: MVV · change at Feldmoching ≥ " + MIN_CHANGE + " min · U2 ride "
