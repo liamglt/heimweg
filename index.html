@@ -93,7 +93,7 @@ const S1_STOP = "de:09162:320";            // Feldmoching
 const U2_STOP = "de:09162:120";            // Theresienstraße
 const NORTH = /freising|flughafen|airport|neufahrn|unterschlei|lohhof/i;   // S1 heading past Lohhof
 const MIN_CHANGE = 1;                      // minutes from U2 arrival to S1 departure at Feldmoching
-const FALLBACK_TRAVEL = 16;                // U2 Theresienstraße -> Feldmoching, if the journey planner has nothing
+const FALLBACK_TRAVEL = 14;                // U2 Theresienstraße -> Feldmoching, if the journey planner has nothing
 const PER_S1 = 2, MAX_S1 = 4, DELAY_WARN = 5;
 
 const $ = (id) => document.getElementById(id);
@@ -153,8 +153,10 @@ function plan(s1Data, u2Data, trips, now) {
   const u2All = events(u2Data).filter((d) => d.line === "U2" && /feldmoching/i.test(d.dest) && !d.cancelled);
   const horizon = Math.max(0, ...u2All.map((u) => u.planned.getTime()));
   const u2s = u2All.filter((u) => u.est >= now - 30000).map((u) => {
-    const known = arr.byDep.get(u.planned.getTime());
-    return { ...u, arr: known || new Date(u.est.getTime() + travel * MIN), exact: !!known };
+    // same train in the journey planner (its times can differ by a few seconds from the departure board)
+    let known = null;
+    for (const [dep, a] of arr.byDep) if (Math.abs(dep - u.planned.getTime()) <= 2 * MIN) { known = a; break; }
+    return { ...u, arr: known || new Date(u.est.getTime() + travel * MIN), exact: !!known || !!arr.travel };
   });
   const groups = [];
   for (const s of s1s) {
