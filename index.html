@@ -136,7 +136,7 @@ function u2Arrivals(trips) {
 function joinParts(list) {
   const byTime = new Map();
   for (const d of list) {
-    const k = Math.round(d.planned.getTime() / MIN), g = byTime.get(k);   // same minute = same train
+    const k = Math.floor(d.planned.getTime() / MIN), g = byTime.get(k);   // same minute = same train
     if (!g) { byTime.set(k, { ...d, dests: [d.dest] }); continue; }
     if (!g.dests.includes(d.dest)) g.dests.push(d.dest);
     const run = [g, d].filter((x) => !x.cancelled).sort((a, b) => a.est - b.est)[0];
