@@ -131,10 +131,25 @@ function u2Arrivals(trips) {
   return { byDep, travel: travel.length ? travel[travel.length >> 1] : null };
 }
 
+// The Freising and Flughafen parts run joined until Neufahrn (after Lohhof): one train per planned time.
+// Only cancelled if both parts are; otherwise the earliest running part counts.
+function joinParts(list) {
+  const byTime = new Map();
+  for (const d of list) {
+    const k = d.planned.getTime(), g = byTime.get(k);
+    if (!g) { byTime.set(k, { ...d, dests: [d.dest] }); continue; }
+    if (!g.dests.includes(d.dest)) g.dests.push(d.dest);
+    const run = [g, d].filter((x) => !x.cancelled).sort((a, b) => a.est - b.est)[0];
+    if (run) Object.assign(g, { est: run.est, delay: run.delay, realtime: g.realtime || d.realtime, cancelled: false,
+                                platform: g.platform || d.platform });
+  }
+  return [...byTime.values()].map((g) => ({ ...g, dest: g.dests.map((x) => x.replace(/\s*München\s*/g, " ").trim()).join(" + ") }))
+                             .sort((a, b) => a.est - b.est);
+}
+
 function plan(s1Data, u2Data, trips, now) {
   const arr = u2Arrivals(trips), travel = arr.travel || FALLBACK_TRAVEL;
-  const s1s = events(s1Data).filter((d) => d.line === "S1" && NORTH.test(d.dest) && d.est >= now - 30000)
-                            .sort((a, b) => a.est - b.est);
+  const s1s = joinParts(events(s1Data).filter((d) => d.line === "S1" && NORTH.test(d.dest) && d.est >= now - 30000));
   const u2All = events(u2Data).filter((d) => d.line === "U2" && /feldmoching/i.test(d.dest) && !d.cancelled);
   const horizon = Math.max(0, ...u2All.map((u) => u.planned.getTime()));
   const u2s = u2All.filter((u) => u.est >= now - 30000).map((u) => {
