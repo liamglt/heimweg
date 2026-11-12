@@ -104,6 +104,11 @@ const norm = (s) => String(s || "").replace(/\s+/g, "").toUpperCase();
 const hm = (d) => d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Berlin" });
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+function stamp(ms) {   // "YYYYMMDD&time=HHMM" in Berlin time
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/Berlin", year: "numeric", month: "2-digit",
+    day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
+  return p.year + p.month + p.day + "&time=" + p.hour + p.minute;
+}
 async function relay(query) {
   const r = await fetch(RELAY + "/?" + query, { cache: "no-store" });
   if (!r.ok) throw new Error("MVV " + r.status);
@@ -220,7 +225,9 @@ let busy = false;
 async function refresh() {
   if (busy) return; busy = true; $("refresh").textContent = "…";
   try {
-    const [s1, u2, trips] = await Promise.all([relay("stop=" + S1_STOP), relay("stop=" + U2_STOP),
+    // ask MVV from 30 min ago: it lists by timetable time, so a late S1/U2 would otherwise vanish once that time passed
+    const since = "&date=" + stamp(Date.now() - 30 * MIN);
+    const [s1, u2, trips] = await Promise.all([relay("stop=" + S1_STOP + since), relay("stop=" + U2_STOP + since),
                                               relay("trip=u2").catch(() => null)]);
     const now = new Date();
     render(plan(s1, u2, trips, now.getTime()), now);
